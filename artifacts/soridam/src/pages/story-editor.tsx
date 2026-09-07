@@ -10,8 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { getAudioContext, decodeAudioBlob, audioBufferToWav } from "@/lib/audio";
 
 const PIXELS_PER_SECOND = 60;
-const TRACK_HEIGHT = 64; 
-const NUM_TRACKS = 4;
+const TRACK_HEIGHT = 64;
+const GUTTER_WIDTH = 64;
 
 const getBlockColor = (trackIndex: number) => {
   const colors = [
@@ -34,7 +34,8 @@ export default function StoryEditor() {
   
   const [isPlaying, setIsPlaying] = useState(false);
   const [playheadTime, setPlayheadTime] = useState(0);
-  const [duration, setDuration] = useState(10); 
+  const [duration, setDuration] = useState(10);
+  const [trackCount, setTrackCount] = useState(1);
 
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [librarySounds, setLibrarySounds] = useState<Sound[]>([]);
@@ -46,7 +47,7 @@ export default function StoryEditor() {
   const startTimeRef = useRef<number>(0);
   
   const containerRef = useRef<HTMLDivElement>(null);
-  const [draggingClip, setDraggingClip] = useState<{ id: string, startX: number, startTrack: number, initialTime: number } | null>(null);
+  const [draggingClip, setDraggingClip] = useState<{ id: string, startX: number, startY: number, startTrack: number, initialTime: number } | null>(null);
 
   useEffect(() => {
     if (params.id) loadData(params.id);
@@ -59,7 +60,16 @@ export default function StoryEditor() {
       setLocation("/stories");
       return;
     }
-    setStory(st);
+    const inferredTrackCount = Math.max(
+      1,
+      ...st.clips.map((clip) => clip.track + 1),
+    );
+    const normalizedStory = {
+      ...st,
+      trackCount: Math.max(st.trackCount ?? inferredTrackCount, inferredTrackCount),
+    };
+    setStory(normalizedStory);
+    setTrackCount(normalizedStory.trackCount);
 
     const snds = await db.getSounds();
     const sndMap: Record<string, Sound> = {};
@@ -78,7 +88,7 @@ export default function StoryEditor() {
       }
     }
     setBuffers(newBuffers);
-    updateDuration(st);
+    updateDuration(normalizedStory);
   };
 
   const updateDuration = (st: SoundStory) => {
@@ -95,6 +105,26 @@ export default function StoryEditor() {
     setStory(updatedStory);
     updateDuration(updatedStory);
   }, []);
+
+  const addTrack = () => {
+    if (!story) return;
+    const newCount = trackCount + 1;
+    setTrackCount(newCount);
+    saveStory({ ...story, trackCount: newCount, updatedAt: Date.now() });
+  };
+
+  const removeTrack = () => {
+    if (!story || trackCount <= 1) return;
+    const lastTrack = trackCount - 1;
+    const hasClips = story.clips.some(c => c.track === lastTrack);
+    if (hasClips) {
+      toast({ title: "삭제 불가", description: "마지막 트랙에 소리 블록이 있습니다.", variant: "destructive" });
+      return;
+    }
+    const newCount = trackCount - 1;
+    setTrackCount(newCount);
+    saveStory({ ...story, trackCount: newCount, updatedAt: Date.now() });
+  };
 
   const stopPlayback = useCallback(() => {
     sourcesRef.current.forEach(s => {
@@ -185,7 +215,11 @@ export default function StoryEditor() {
   const handleTimelinePointerDown = (e: React.PointerEvent) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left + containerRef.current.scrollLeft;
+    const x = e.clientX - rect.left + containerRef.current.scrollLeft - GUTTER_WIDTH;
+    
+    // Don't seek if clicking on the gutter
+    if (x < 0) return;
+
     const t = x / PIXELS_PER_SECOND;
     setPlayheadTime(Math.max(0, Math.min(t, duration)));
     if (isPlaying) {
@@ -198,11 +232,25 @@ export default function StoryEditor() {
     if (!story) return;
     setIsLibraryOpen(false);
 
+    // Find the first track that is empty at playheadTime, or default to track 0
+    let targetTrack = 0;
+    for (let i = 0; i < trackCount; i++) {
+      const hasOverlap = story.clips.some(c => 
+        c.track === i && 
+        (playheadTime < c.startTime + (c.trimEnd - c.trimStart)) && 
+        (playheadTime + (sound.trimEnd - sound.trimStart) > c.startTime)
+      );
+      if (!hasOverlap) {
+        targetTrack = i;
+        break;
+      }
+    }
+
     const newClip: SoundClip = {
       id: generateId(),
       soundId: sound.id,
       startTime: playheadTime,
-      track: 0,
+      track: targetTrack,
       trimStart: sound.trimStart,
       trimEnd: sound.trimEnd,
       volume: 1.0,
@@ -256,6 +304,7 @@ export default function StoryEditor() {
     setDraggingClip({
       id: clip.id,
       startX: e.clientX,
+      startY: e.clientY,
       startTrack: clip.track,
       initialTime: clip.startTime
     });
@@ -265,10 +314,13 @@ export default function StoryEditor() {
   const handleClipPointerMove = (e: React.PointerEvent) => {
     if (!draggingClip) return;
     const dx = e.clientX - draggingClip.startX;
+    const dy = e.clientY - draggingClip.startY;
     const dt = dx / PIXELS_PER_SECOND;
-    const newTime = Math.max(0, draggingClip.initialTime + dt);
     
-    updateClip(draggingClip.id, { startTime: newTime }, false);
+    const newTime = Math.max(0, draggingClip.initialTime + dt);
+    const newTrack = Math.max(0, Math.min(trackCount - 1, draggingClip.startTrack + Math.round(dy / TRACK_HEIGHT)));
+    
+    updateClip(draggingClip.id, { startTime: newTime, track: newTrack }, false);
   };
 
   const handleClipPointerUp = (e: React.PointerEvent) => {
@@ -276,10 +328,28 @@ export default function StoryEditor() {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
       const clip = story?.clips.find(c => c.id === draggingClip.id);
       if (clip) {
-        updateClip(draggingClip.id, { startTime: clip.startTime }, true);
+        updateClip(draggingClip.id, { startTime: clip.startTime, track: clip.track }, true);
       }
       setDraggingClip(null);
     }
+  };
+
+  const setFade = (type: 'fadeIn' | 'fadeOut', value: number) => {
+    if (!selectedClip) return;
+    const clipDuration = selectedClip.trimEnd - selectedClip.trimStart;
+    const currentVal = selectedClip[type];
+    const otherVal = type === 'fadeIn' ? selectedClip.fadeOut : selectedClip.fadeIn;
+    const maxValue = Math.max(0, Math.floor(clipDuration - otherVal));
+    const newVal = Math.min(maxValue, Math.max(0, Math.floor(Number.isFinite(value) ? value : 0)));
+    
+    if (newVal !== currentVal) {
+      updateClip(selectedClip.id, { [type]: newVal });
+    }
+  };
+
+  const adjustFade = (type: 'fadeIn' | 'fadeOut', amount: number) => {
+    if (!selectedClip) return;
+    setFade(type, selectedClip[type] + amount);
   };
 
   const renderWav = async () => {
@@ -351,7 +421,7 @@ export default function StoryEditor() {
         />
         <Button onClick={renderWav} className="hidden md:flex gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-2xl h-12 px-6 shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all font-bold">
           <span className="material-symbols-rounded text-xl">download</span>
-          WAV 저장
+          음원 저장
         </Button>
         <Button size="icon" onClick={renderWav} className="md:hidden bg-secondary text-secondary-foreground hover:bg-secondary/90 rounded-xl h-10 w-10 shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all">
           <span className="material-symbols-rounded text-xl">download</span>
@@ -377,10 +447,29 @@ export default function StoryEditor() {
               </div>
             </div>
             
-            <Button onClick={() => setIsLibraryOpen(true)} className="gap-2 rounded-2xl bg-accent text-accent-foreground hover:bg-accent/90 h-12 px-5 font-bold shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all">
-              <span className="material-symbols-rounded text-xl">add_circle</span>
-              소리 추가
-            </Button>
+            <div className="flex items-center gap-2 md:gap-3">
+              <Button variant="outline" onClick={removeTrack} disabled={trackCount <= 1} className="hidden md:flex gap-1 rounded-2xl h-12 px-4 font-bold border-2 shadow-sm active:translate-y-[2px]">
+                <span className="material-symbols-rounded text-lg">remove</span>
+                트랙 지우기
+              </Button>
+              <Button variant="outline" onClick={addTrack} className="hidden md:flex gap-1 rounded-2xl h-12 px-4 font-bold border-2 shadow-sm active:translate-y-[2px]">
+                <span className="material-symbols-rounded text-lg">add</span>
+                트랙 추가
+              </Button>
+              
+              {/* Mobile Track Controls */}
+              <Button variant="outline" size="icon" onClick={removeTrack} disabled={trackCount <= 1} className="md:hidden rounded-xl h-10 w-10 border-2 shadow-sm active:translate-y-[2px]">
+                <span className="material-symbols-rounded text-lg">remove</span>
+              </Button>
+              <Button variant="outline" size="icon" onClick={addTrack} className="md:hidden rounded-xl h-10 w-10 border-2 shadow-sm active:translate-y-[2px]">
+                <span className="material-symbols-rounded text-lg">add</span>
+              </Button>
+
+              <Button onClick={() => setIsLibraryOpen(true)} className="gap-2 rounded-2xl bg-accent text-accent-foreground hover:bg-accent/90 h-12 px-5 font-bold shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all ml-1 md:ml-2">
+                <span className="material-symbols-rounded text-xl">add_circle</span>
+                소리 추가
+              </Button>
+            </div>
           </div>
 
           <div 
@@ -391,46 +480,20 @@ export default function StoryEditor() {
             <div 
               className="absolute top-0 bottom-0 min-w-full" 
               style={{ 
-                width: `${Math.max(100, duration * PIXELS_PER_SECOND)}px`,
-                height: `${NUM_TRACKS * TRACK_HEIGHT + 40}px` 
+                width: `${Math.max(100, duration * PIXELS_PER_SECOND) + GUTTER_WIDTH}px`,
+                height: `${trackCount * TRACK_HEIGHT + 40}px` 
               }}
             >
-              {/* Grid lines */}
-              {Array.from({ length: Math.ceil(duration) }).map((_, i) => (
-                <div 
-                  key={i} 
-                  className="absolute top-0 bottom-0 border-l border-border/60 text-[10px] text-muted-foreground/60 pl-1 pt-1 font-mono font-bold pointer-events-none z-0"
-                  style={{ left: `${i * PIXELS_PER_SECOND}px` }}
-                >
-                  {i}s
-                </div>
-              ))}
-
-              {/* Track Backgrounds */}
-              {Array.from({ length: NUM_TRACKS }).map((_, i) => (
-                <div 
-                  key={`track-${i}`}
-                  className="absolute w-full flex flex-col justify-center pointer-events-none z-0"
-                  style={{ top: `${i * TRACK_HEIGHT}px`, height: `${TRACK_HEIGHT}px` }}
-                >
-                  <div 
-                    className="w-full bg-black/[0.02] dark:bg-white/[0.02] rounded-xl border-y border-black/[0.04] dark:border-white/[0.04]" 
-                    style={{ height: TRACK_HEIGHT - 12 }} 
-                  />
-                </div>
-              ))}
-
-              {/* Sticky Track Numbers */}
-              <div className="sticky left-0 z-30 pointer-events-none w-0 h-full top-0">
-                {Array.from({ length: NUM_TRACKS }).map((_, i) => {
+              {/* Sticky Gutter Container */}
+              <div className="sticky left-0 z-30 h-full top-0 w-[64px] bg-card border-r-2 border-border/50 shadow-[4px_0_12px_rgba(0,0,0,0.02)] pt-[40px] pointer-events-none">
+                {Array.from({ length: trackCount }).map((_, i) => {
                   const style = getBlockColor(i);
                   return (
                     <div 
                       key={`track-num-${i}`}
-                      className="absolute flex items-center justify-center w-6 h-6 rounded-md font-black text-xs shadow-sm bg-card"
+                      className="absolute flex items-center justify-center w-8 h-8 rounded-lg font-black text-sm shadow-sm bg-card left-1/2 -translate-x-1/2"
                       style={{ 
-                        top: i * TRACK_HEIGHT + TRACK_HEIGHT / 2 - 12, 
-                        left: 8,
+                        top: i * TRACK_HEIGHT + 40 + TRACK_HEIGHT / 2 - 16, 
                         color: style.bg,
                         border: `2px solid ${style.bg}`
                       }}
@@ -441,6 +504,47 @@ export default function StoryEditor() {
                 })}
               </div>
 
+              {/* Empty Timeline Guide */}
+              {story.clips.length === 0 && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10" style={{ left: GUTTER_WIDTH, top: 40 }}>
+                  <div className="bg-card p-6 md:p-8 rounded-3xl border-4 border-dashed border-border/60 shadow-sm flex flex-col items-center gap-4 pointer-events-auto text-center max-w-sm mx-4">
+                    <span className="material-symbols-rounded text-5xl text-primary/40">waving_hand</span>
+                    <div>
+                      <h3 className="text-xl font-black text-foreground mb-2">타임라인이 비어있어요!</h3>
+                      <p className="text-muted-foreground font-bold text-sm">오른쪽 위 <strong className="text-accent-foreground bg-accent px-2 py-0.5 rounded-md">소리 추가</strong> 버튼을 눌러<br/>이야기를 시작해보세요.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline Content */}
+              <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: `${GUTTER_WIDTH}px`, right: 0 }}>
+                {/* Grid lines */}
+                {Array.from({ length: Math.ceil(duration) }).map((_, i) => (
+                  <div 
+                    key={i} 
+                    className="absolute top-0 bottom-0 border-l border-border/60 text-[10px] text-muted-foreground/60 pl-1 pt-1 font-mono font-bold z-0"
+                    style={{ left: `${i * PIXELS_PER_SECOND}px` }}
+                  >
+                    {i}s
+                  </div>
+                ))}
+
+                {/* Track Backgrounds */}
+                {Array.from({ length: trackCount }).map((_, i) => (
+                  <div 
+                    key={`track-${i}`}
+                    className="absolute w-full flex flex-col justify-center z-0"
+                    style={{ top: `${i * TRACK_HEIGHT + 40}px`, height: `${TRACK_HEIGHT}px` }}
+                  >
+                    <div 
+                      className="w-full bg-black/[0.02] dark:bg-white/[0.02] rounded-r-xl border-y border-black/[0.04] dark:border-white/[0.04]" 
+                      style={{ height: TRACK_HEIGHT - 12 }} 
+                    />
+                  </div>
+                ))}
+              </div>
+
               {/* Clips */}
               {story.clips.map(clip => {
                 const snd = sounds[clip.soundId];
@@ -449,8 +553,8 @@ export default function StoryEditor() {
                 const isSelected = selectedClip?.id === clip.id;
                 const clipDuration = clip.trimEnd - clip.trimStart;
                 const width = clipDuration * PIXELS_PER_SECOND;
-                const left = clip.startTime * PIXELS_PER_SECOND;
-                const top = clip.track * TRACK_HEIGHT + 6;
+                const left = GUTTER_WIDTH + clip.startTime * PIXELS_PER_SECOND;
+                const top = 40 + clip.track * TRACK_HEIGHT + 6;
                 const blockHeight = TRACK_HEIGHT - 12;
                 
                 const blockStyle = getBlockColor(clip.track);
@@ -459,8 +563,8 @@ export default function StoryEditor() {
                   <div
                     key={clip.id}
                     className={cn(
-                      "absolute rounded-xl flex items-center px-2 overflow-hidden cursor-grab active:cursor-grabbing transition-shadow",
-                      isSelected ? "z-20 ring-2 ring-primary ring-offset-2 ring-offset-background" : "hover:brightness-105 z-10"
+                      "absolute rounded-md flex items-center px-2 overflow-hidden cursor-grab active:cursor-grabbing transition-shadow group",
+                      isSelected ? "z-20 ring-2 ring-primary ring-offset-2 ring-offset-background" : "z-10"
                     )}
                     style={{ 
                       left: `${left}px`, 
@@ -471,7 +575,7 @@ export default function StoryEditor() {
                       borderBottom: `4px solid ${blockStyle.border}`,
                       borderLeft: `1px solid ${blockStyle.border}`,
                       borderRight: `1px solid ${blockStyle.border}`,
-                      borderTop: `1px solid rgba(255,255,255,0.4)`,
+                      borderTop: `2px solid rgba(255,255,255,0.4)`,
                       color: blockStyle.text,
                       boxShadow: isSelected ? `0 8px 16px rgba(0,0,0,0.2)` : `0 2px 4px rgba(0,0,0,0.1)`
                     }}
@@ -479,11 +583,14 @@ export default function StoryEditor() {
                     onPointerMove={handleClipPointerMove}
                     onPointerUp={handleClipPointerUp}
                   >
+                    {/* Inner highlight logic without breaking border top */}
+                    <div className="absolute inset-0 bg-white/0 group-hover:bg-white/10 pointer-events-none transition-colors" />
+
                     <div className="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-around px-1 overflow-hidden">
                       {Array.from({length: Math.max(2, Math.floor(width/12))}).map((_, i) => (
                         <div
                           key={i}
-                          className="w-1.5 bg-current rounded-full shrink-0"
+                          className="w-1 bg-current shrink-0"
                           style={{ height: `${30 + Math.abs(Math.sin(i * 12.9898 + clip.id.length)) * 40}%` }}
                         />
                       ))}
@@ -497,10 +604,10 @@ export default function StoryEditor() {
 
               {/* Playhead */}
               <div 
-                className="absolute top-0 bottom-0 w-[2px] bg-destructive z-40 pointer-events-none shadow-[0_0_8px_rgba(255,0,0,0.4)]"
-                style={{ left: `${playheadTime * PIXELS_PER_SECOND}px` }}
+                className="absolute top-[40px] bottom-0 w-[2px] bg-destructive z-40 pointer-events-none shadow-[0_0_8px_rgba(255,0,0,0.4)] transition-transform duration-75"
+                style={{ left: `${GUTTER_WIDTH + playheadTime * PIXELS_PER_SECOND}px` }}
               >
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm" />
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-4 h-4 bg-destructive rounded-full border-2 border-background shadow-sm" />
               </div>
             </div>
           </div>
@@ -511,7 +618,7 @@ export default function StoryEditor() {
           "bg-card border-border shrink-0 flex flex-col transition-all duration-300 ease-in-out z-30",
           "md:w-[320px] lg:w-[360px] md:h-full md:border-l-4 md:border-t-0",
           "w-full border-t-4 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] md:shadow-none relative",
-          selectedClip ? "h-[360px] md:h-full" : "h-[80px] md:h-full"
+          selectedClip ? "h-[380px] md:h-full" : "h-[80px] md:h-full"
         )}>
           <div className="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
             {selectedClip ? (
@@ -525,15 +632,15 @@ export default function StoryEditor() {
                 
                 <div>
                   <label className="text-sm font-bold mb-3 block text-muted-foreground">트랙 이동</label>
-                  <div className="flex gap-2">
-                    {Array.from({ length: NUM_TRACKS }).map((_, i) => {
+                  <div className="flex gap-2 flex-wrap">
+                    {Array.from({ length: trackCount }).map((_, i) => {
                        const style = getBlockColor(i);
                        const isActive = selectedClip.track === i;
                        return (
                         <Button 
                           key={i} 
                           className={cn(
-                            "flex-1 rounded-xl h-12 font-black text-lg transition-all active:translate-y-[2px]",
+                            "w-12 rounded-xl h-12 font-black text-lg transition-all active:translate-y-[2px]",
                             isActive ? "opacity-100 -translate-y-1" : "opacity-60 hover:opacity-100"
                           )}
                           style={{
@@ -569,21 +676,45 @@ export default function StoryEditor() {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-muted/40 p-3 rounded-xl border border-border/50 flex flex-col gap-2">
                     <label className="text-xs font-bold text-muted-foreground">서서히 커지기 (초)</label>
-                    <Input 
-                      type="number" step="0.5" min="0" 
-                      value={selectedClip.fadeIn} 
-                      onChange={(e) => updateClip(selectedClip.id, { fadeIn: parseFloat(e.target.value) || 0 })} 
-                      className="font-mono text-sm bg-card border shadow-sm rounded-lg h-9"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg active:translate-y-1" onClick={() => adjustFade('fadeIn', -1)} aria-label="1초 줄이기" disabled={selectedClip.fadeIn <= 0}>
+                        <span className="material-symbols-rounded text-lg">remove</span>
+                      </Button>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        value={selectedClip.fadeIn}
+                        onChange={(e) => setFade('fadeIn', Number(e.target.value))}
+                        aria-label="서서히 커지는 시간(초)"
+                        className="h-8 min-w-0 px-1 text-center font-mono font-bold text-sm rounded-lg"
+                      />
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg active:translate-y-1" onClick={() => adjustFade('fadeIn', 1)} aria-label="1초 늘리기" disabled={selectedClip.fadeIn + selectedClip.fadeOut >= (selectedClip.trimEnd - selectedClip.trimStart)}>
+                        <span className="material-symbols-rounded text-lg">add</span>
+                      </Button>
+                    </div>
                   </div>
                   <div className="bg-muted/40 p-3 rounded-xl border border-border/50 flex flex-col gap-2">
                     <label className="text-xs font-bold text-muted-foreground">서서히 작아지기 (초)</label>
-                    <Input 
-                      type="number" step="0.5" min="0" 
-                      value={selectedClip.fadeOut} 
-                      onChange={(e) => updateClip(selectedClip.id, { fadeOut: parseFloat(e.target.value) || 0 })} 
-                      className="font-mono text-sm bg-card border shadow-sm rounded-lg h-9"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg active:translate-y-1" onClick={() => adjustFade('fadeOut', -1)} aria-label="1초 줄이기" disabled={selectedClip.fadeOut <= 0}>
+                        <span className="material-symbols-rounded text-lg">remove</span>
+                      </Button>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        value={selectedClip.fadeOut}
+                        onChange={(e) => setFade('fadeOut', Number(e.target.value))}
+                        aria-label="서서히 작아지는 시간(초)"
+                        className="h-8 min-w-0 px-1 text-center font-mono font-bold text-sm rounded-lg"
+                      />
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-lg active:translate-y-1" onClick={() => adjustFade('fadeOut', 1)} aria-label="1초 늘리기" disabled={selectedClip.fadeIn + selectedClip.fadeOut >= (selectedClip.trimEnd - selectedClip.trimStart)}>
+                        <span className="material-symbols-rounded text-lg">add</span>
+                      </Button>
+                    </div>
                   </div>
                 </div>
 

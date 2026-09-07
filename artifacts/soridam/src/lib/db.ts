@@ -28,6 +28,7 @@ export type SoundStory = {
   clips: SoundClip[];
   createdAt: number;
   updatedAt: number;
+  trackCount?: number;
 };
 
 const DB_NAME = 'SoridamDB';

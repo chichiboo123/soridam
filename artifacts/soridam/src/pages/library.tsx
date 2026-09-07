@@ -137,7 +137,7 @@ export default function Library() {
         ) : (
           <div className="grid gap-5">
             {filtered.map(sound => (
-              <div key={sound.id} className="bg-card p-5 rounded-[2rem] flex items-center gap-5 border-4 border-border shadow-[0_6px_0_0_rgba(0,0,0,0.05)] hover:-translate-y-1 hover:shadow-[0_8px_0_0_rgba(0,0,0,0.05)] transition-all group">
+              <div key={sound.id} className="bg-card p-5 rounded-[2rem] flex items-center gap-5 border-4 border-border shadow-[0_6px_0_0_rgba(0,0,0,0.05)] hover:border-primary/50 transition-colors group">
                 <Button 
                   size="icon" 
                   className={`w-16 h-16 rounded-[1.25rem] shrink-0 shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all ${playingId === sound.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}

@@ -25,6 +25,7 @@ export default function Stories() {
       clips: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      trackCount: 1,
     };
     await db.saveStory(newStory);
     setLocation(`/stories/${id}`);
