@@ -1,83 +1,210 @@
-import { ReactNode } from "react";
-import { Link, useLocation } from "wouter";
-import { cn } from "@/lib/utils";
+import { ReactNode, useLayoutEffect, useRef } from 'react';
+import { Link, useLocation } from 'wouter';
+import { cn } from '@/lib/utils';
+import { BrandFooter } from '@/components/brand-footer';
 
 const NAV_ITEMS = [
-  { path: "/", label: "녹음", icon: "mic" },
-  { path: "/sounds", label: "소리함", icon: "library_music" },
-  { path: "/stories", label: "이야기", icon: "auto_awesome" },
+  { path: '/', label: '녹음', icon: 'mic', hint: '새로운 소리를 녹음해요' },
+  {
+    path: '/sounds',
+    label: '소리함',
+    icon: 'library_music',
+    hint: '저장한 소리를 관리해요',
+  },
+  {
+    path: '/stories',
+    label: '이야기',
+    icon: 'auto_awesome',
+    hint: '소리를 배치해 이야기를 만들어요',
+  },
 ];
 
+function isActivePath(location: string, path: string) {
+  return path === '/' ? location === '/' : location.startsWith(path);
+}
+
+/**
+ * 앱 셸.
+ *
+ * VER2에서 바뀐 점
+ * - 문서 스크롤을 사용합니다. 이전의 `h-[100dvh] + overflow-hidden` 조합은
+ *   모바일 브라우저 주소창이 접히고 펴질 때 높이가 튀면서 하단 콘텐츠가
+ *   잘리는 원인이었습니다.
+ * - 하단 독(네비 + 푸터)의 실제 높이를 ResizeObserver로 재서
+ *   `--sd-dock-h`에 넣고, 본문 하단 여백에 그대로 사용합니다.
+ *   글자 크기나 노치 크기가 달라져도 버튼이 가려지지 않습니다.
+ * - 노치/홈 인디케이터 영역은 safe-area-inset으로 처리합니다.
+ */
 export function Layout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
+  const shellRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const shell = shellRef.current;
+    const dock = dockRef.current;
+    if (!shell || !dock) return;
+
+    const sync = () => {
+      // 데스크톱에서는 독이 display:none 이라 0px → 하단 여백도 0
+      shell.style.setProperty('--sd-dock-h', `${dock.offsetHeight}px`);
+    };
+
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(dock);
+    window.addEventListener('orientationchange', sync);
+    window.addEventListener('resize', sync);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('orientationchange', sync);
+      window.removeEventListener('resize', sync);
+    };
+  }, []);
 
   return (
-    <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden relative">
-      <main className="flex-1 overflow-y-auto pb-[100px] md:pb-12 md:pl-28 transition-all flex flex-col">
-        {children}
-      </main>
+    <div
+      ref={shellRef}
+      className="relative flex min-h-[100dvh] w-full flex-col bg-background"
+    >
+      <a
+        href="#sd-main"
+        className="sr-only-focusable absolute left-4 top-4 z-[100] rounded-xl bg-primary px-4 py-3 font-bold text-primary-foreground"
+      >
+        본문 바로가기
+      </a>
 
-      {/* Bottom Nav for Mobile */}
-      <nav className="md:hidden absolute bottom-0 left-0 right-0 h-[88px] bg-card border-t-[3px] border-border flex items-center justify-around px-4 z-50 rounded-t-[2rem] shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
-        {NAV_ITEMS.map((item) => {
-          const isActive = location === item.path || (item.path !== '/' && location.startsWith(item.path));
-          return (
-            <Link key={item.path} href={item.path} className="flex-1 h-full flex flex-col items-center justify-center gap-1.5 touch-none group">
-              <div className={cn(
-                "w-16 h-10 rounded-[1.25rem] flex items-center justify-center transition-all",
-                isActive ? "bg-primary text-primary-foreground shadow-[0_4px_0_0_rgba(0,0,0,0.15)] -translate-y-1" : "text-muted-foreground group-hover:bg-muted"
-              )}>
-                <span className={cn("material-symbols-rounded text-[28px] transition-transform", isActive && "font-black")}>
-                  {item.icon}
-                </span>
-              </div>
-              <span className={cn(
-                "text-[12px] font-black transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground"
-              )}>
-                {item.label}
-              </span>
-            </Link>
-          );
-        })}
-      </nav>
+      {/* ── 데스크톱: 좌측 레일 (브랜드 · 메뉴 · 크레딧) ───────────────── */}
+      <div className="fixed inset-y-0 left-0 z-40 hidden w-[var(--sd-rail-width)] flex-col border-r-2 border-border bg-card md:flex">
+        <Link
+          href="/"
+          className="mx-auto mt-7 flex size-14 items-center justify-center rounded-2xl bg-brand text-white sd-pop sd-pop-lg sd-press"
+          aria-label="소리담 홈"
+        >
+          <span
+            className="material-symbols-rounded text-[30px]"
+            aria-hidden="true"
+          >
+            graphic_eq
+          </span>
+        </Link>
 
-      {/* Side Nav for Desktop */}
-      <nav className="hidden md:flex flex-col absolute top-0 left-0 bottom-0 w-28 bg-card border-r-[3px] border-border py-8 items-center z-50">
-        <div className="w-16 h-16 bg-accent text-accent-foreground rounded-[1.5rem] flex items-center justify-center mb-10 shadow-[0_4px_0_0_rgba(0,0,0,0.1)] -rotate-3 hover:rotate-3 transition-transform">
-          <span className="material-symbols-rounded text-4xl">record_voice_over</span>
-        </div>
-        
-        <div className="flex flex-col gap-8 flex-1 w-full px-3">
+        <nav
+          aria-label="주요 메뉴"
+          className="mt-8 flex flex-1 flex-col gap-3 px-3"
+        >
           {NAV_ITEMS.map((item) => {
-            const isActive = location === item.path || (item.path !== '/' && location.startsWith(item.path));
+            const active = isActivePath(location, item.path);
             return (
-              <Link key={item.path} href={item.path} className="flex flex-col items-center gap-2 group w-full">
-                <div className={cn(
-                  "w-20 h-16 rounded-[1.5rem] flex items-center justify-center transition-all",
-                  isActive ? "bg-primary text-primary-foreground shadow-[0_6px_0_0_rgba(0,0,0,0.15)] -translate-y-1" : "text-muted-foreground group-hover:bg-muted"
-                )}>
-                  <span className={cn("material-symbols-rounded text-[32px] transition-transform", isActive && "font-black")}>
+              <Link
+                key={item.path}
+                href={item.path}
+                aria-current={active ? 'page' : undefined}
+                title={item.hint}
+                className={cn(
+                  'group flex flex-col items-center gap-1.5 rounded-2xl px-1 py-3 transition-colors',
+                  active
+                    ? 'bg-primary-tint'
+                    : 'hover:bg-muted focus-visible:bg-muted',
+                )}
+              >
+                <span
+                  className={cn(
+                    'flex h-11 w-14 items-center justify-center rounded-xl transition-colors',
+                    active
+                      ? 'bg-primary text-primary-foreground sd-pop sd-pop-sm'
+                      : 'text-muted-foreground group-hover:text-foreground',
+                  )}
+                >
+                  <span
+                    className="material-symbols-rounded text-[26px]"
+                    aria-hidden="true"
+                  >
                     {item.icon}
                   </span>
-                </div>
-                <span className={cn(
-                  "text-[14px] font-black transition-colors",
-                  isActive ? "text-primary" : "text-muted-foreground"
-                )}>
+                </span>
+                <span
+                  className={cn(
+                    'text-[13px] font-bold',
+                    active ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                >
                   {item.label}
                 </span>
               </Link>
             );
           })}
-        </div>
-      </nav>
-      
-      {/* Footer text properly centered horizontally */}
-      <div className="absolute bottom-[96px] md:bottom-6 left-0 md:left-28 right-0 flex justify-center z-40 pointer-events-none">
-        <a href="https://litt.ly/chichiboo" target="_blank" rel="noreferrer" className="text-[12px] font-bold text-muted-foreground/60 hover:text-primary transition-colors pointer-events-auto bg-background/90 px-5 py-2 rounded-full backdrop-blur-md border-2 border-border/50 shadow-sm">
-          Created by. 교육뮤지컬 꿈꾸는 치수쌤
-        </a>
+        </nav>
+
+      </div>
+
+      {/* ── 본문 ─────────────────────────────────────────────────────── */}
+      <main
+        id="sd-main"
+        className="flex w-full flex-1 flex-col md:pl-[var(--sd-rail-width)]"
+        style={{ paddingBottom: 'var(--sd-dock-h, 0px)' }}
+      >
+        {children}
+        {/*
+          데스크톱 크레딧. mt-auto 덕분에 내용이 짧으면 화면 맨 아래,
+          길면 내용 끝에 붙습니다(고전적인 sticky footer).
+        */}
+        <BrandFooter
+          variant="bar"
+          className="mt-auto hidden border-t-2 border-border py-2.5 md:flex"
+        />
+      </main>
+
+      {/* ── 모바일: 하단 고정 독 (메뉴 + 크레딧) ───────────────────────
+          fixed + safe-area. 본문은 이 독의 실측 높이만큼 여백을 갖습니다. */}
+      <div
+        ref={dockRef}
+        className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-border bg-card shadow-[0_-6px_24px_rgba(15,23,42,0.06)] md:hidden"
+        style={{ paddingBottom: 'var(--sd-safe-bottom)' }}
+      >
+        <nav
+          aria-label="주요 메뉴"
+          className="flex items-stretch justify-around px-2 pt-1.5"
+        >
+          {NAV_ITEMS.map((item) => {
+            const active = isActivePath(location, item.path);
+            return (
+              <Link
+                key={item.path}
+                href={item.path}
+                aria-current={active ? 'page' : undefined}
+                className="group flex flex-1 flex-col items-center justify-center gap-0.5 rounded-xl py-0.5"
+              >
+                <span
+                  className={cn(
+                    'flex h-9 w-[3.25rem] items-center justify-center rounded-xl transition-colors',
+                    active
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  <span
+                    className="material-symbols-rounded text-[24px]"
+                    aria-hidden="true"
+                  >
+                    {item.icon}
+                  </span>
+                </span>
+                <span
+                  className={cn(
+                    'text-[11px] font-bold',
+                    active ? 'text-primary' : 'text-muted-foreground',
+                  )}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <BrandFooter variant="bar" />
       </div>
     </div>
   );
