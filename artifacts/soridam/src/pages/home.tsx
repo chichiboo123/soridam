@@ -5,7 +5,7 @@ import { TrimSlider } from "@/components/ui/trim-slider";
 import { useToast } from "@/hooks/use-toast";
 import { db, type Sound } from "@/lib/db";
 import { generateId, formatTime } from "@/lib/utils";
-import { audioBufferToWav, getAudioContext } from "@/lib/audio";
+import { getAudioContext } from "@/lib/audio";
 
 export default function Home() {
   const { toast } = useToast();
@@ -108,16 +108,6 @@ export default function Home() {
     setIsPaused(false);
     setRecordingTime(0);
 
-    const startTime = Date.now();
-    let accumulatedPauseTime = 0;
-    let lastPauseStart = 0;
-
-    const updateTimer = () => {
-      if (!isPaused && mediaRecorderRef.current?.state === 'recording') {
-         // rough time calculation
-      }
-    };
-    
     timerRef.current = window.setInterval(() => {
       if (mediaRecorderRef.current?.state === 'recording') {
         setRecordingTime(prev => prev + 0.1);
@@ -167,6 +157,8 @@ export default function Home() {
     if (recordedUrl) URL.revokeObjectURL(recordedUrl);
     setRecordedUrl(null);
     setSoundName("");
+    setCurrentTime(0);
+    setIsPlaying(false);
   };
 
   const saveSound = async () => {
@@ -203,17 +195,37 @@ export default function Home() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleTimeUpdate = () => {
+    let rafId: number;
+    const updateTime = () => {
       setCurrentTime(audio.currentTime);
-      if (audio.currentTime >= trimEnd) {
+      if (audio.currentTime >= trimEnd && !audio.paused) {
         audio.pause();
         audio.currentTime = trimStart;
+        setCurrentTime(trimStart);
         setIsPlaying(false);
+      } else if (!audio.paused) {
+        rafId = requestAnimationFrame(updateTime);
       }
     };
 
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    return () => audio.removeEventListener('timeupdate', handleTimeUpdate);
+    const handlePlay = () => {
+      setIsPlaying(true);
+      rafId = requestAnimationFrame(updateTime);
+    };
+
+    const handlePause = () => {
+      setIsPlaying(false);
+      cancelAnimationFrame(rafId);
+    };
+
+    audio.addEventListener('play', handlePlay);
+    audio.addEventListener('pause', handlePause);
+    
+    return () => {
+      audio.removeEventListener('play', handlePlay);
+      audio.removeEventListener('pause', handlePause);
+      cancelAnimationFrame(rafId);
+    };
   }, [trimEnd, trimStart]);
 
   const togglePlayback = () => {
@@ -222,106 +234,148 @@ export default function Home() {
     if (isPlaying) {
       audio.pause();
     } else {
-      if (audio.currentTime < trimStart || audio.currentTime >= trimEnd) {
+      if (audio.currentTime < trimStart || audio.currentTime >= trimEnd - 0.05) {
         audio.currentTime = trimStart;
       }
-      audio.play();
+      audio.play().catch(e => console.error("Playback failed", e));
     }
-    setIsPlaying(!isPlaying);
   };
 
   return (
-    <div className="flex flex-col h-full items-center p-6 md:p-12 max-w-2xl mx-auto w-full">
-      <div className="w-full mb-8 text-center mt-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-foreground font-serif">소리담</h1>
-        <p className="text-muted-foreground mt-2 font-medium">나만의 작은 소리 채집장</p>
+    <div className="flex flex-col h-full items-center p-4 md:p-12 w-full max-w-5xl mx-auto">
+      <div className="w-full mb-6 md:mb-10 text-center mt-2 md:mt-4">
+        <h1 className="text-4xl md:text-5xl font-bold text-foreground font-serif tracking-tight">소리담</h1>
+        <p className="text-muted-foreground mt-2 md:mt-3 font-medium text-sm md:text-base">소리를 담다, 이야기를 담다</p>
       </div>
 
       {!recordedBlob ? (
-        <div className="flex flex-col items-center justify-center flex-1 w-full max-w-sm gap-12">
+        <div className="flex flex-col items-center justify-center flex-1 w-full max-w-md gap-8 md:gap-12 pb-12">
           {/* Level Visualizer & Timer */}
-          <div className="relative w-64 h-64 flex items-center justify-center rounded-full bg-card shadow-xl border border-border/50">
+          <div className="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center rounded-full bg-card shadow-xl border border-border/60">
             {isRecording && (
-              <div 
-                className="absolute inset-0 bg-primary/10 rounded-full transition-transform duration-100 ease-linear pointer-events-none"
-                style={{ transform: `scale(${1 + (audioLevel / 255) * 0.5})` }}
-              />
+              <>
+                <div 
+                  className="absolute inset-0 bg-primary/10 rounded-full transition-transform duration-100 ease-linear pointer-events-none"
+                  style={{ transform: `scale(${1 + (audioLevel / 255) * 0.3})` }}
+                />
+                <div 
+                  className="absolute inset-0 bg-primary/5 rounded-full transition-transform duration-200 ease-out pointer-events-none"
+                  style={{ transform: `scale(${1 + (audioLevel / 255) * 0.6})` }}
+                />
+              </>
             )}
-            <div className="text-5xl font-mono font-medium z-10 text-foreground tracking-tighter">
-              {formatTime(recordingTime)}
+            <div className="flex flex-col items-center z-10">
+              <span className="text-xs md:text-sm font-bold text-muted-foreground mb-2">
+                {isRecording ? (isPaused ? "일시정지됨" : "녹음 중...") : "준비됨"}
+              </span>
+              <div className="text-5xl md:text-6xl font-mono font-bold text-foreground tracking-tighter">
+                {formatTime(recordingTime)}
+              </div>
             </div>
           </div>
 
           {/* Controls */}
           <div className="flex items-center gap-6">
             {!isRecording ? (
-              <Button size="icon" className="w-24 h-24 rounded-[2rem] shadow-lg hover:scale-105 transition-all bg-destructive text-destructive-foreground" onClick={startRecording}>
-                <span className="material-symbols-rounded text-5xl">mic</span>
+              <Button size="icon" className="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] shadow-xl hover:scale-105 transition-all bg-destructive text-destructive-foreground hover:bg-destructive/90 group" onClick={startRecording}>
+                <span className="material-symbols-rounded text-5xl md:text-6xl group-hover:scale-110 transition-transform">mic</span>
               </Button>
             ) : (
               <>
                 {isPaused ? (
-                  <Button size="icon" variant="secondary" className="w-20 h-20 rounded-[1.5rem] shadow-md" onClick={resumeRecording}>
-                    <span className="material-symbols-rounded text-4xl">mic</span>
+                  <Button size="icon" variant="secondary" className="w-20 h-20 md:w-24 md:h-24 rounded-[1.5rem] shadow-md hover:scale-105 transition-all" onClick={resumeRecording}>
+                    <span className="material-symbols-rounded text-4xl md:text-5xl">mic</span>
                   </Button>
                 ) : (
-                  <Button size="icon" variant="secondary" className="w-20 h-20 rounded-[1.5rem] shadow-md" onClick={pauseRecording}>
-                    <span className="material-symbols-rounded text-4xl">pause</span>
+                  <Button size="icon" variant="secondary" className="w-20 h-20 md:w-24 md:h-24 rounded-[1.5rem] shadow-md hover:scale-105 transition-all" onClick={pauseRecording}>
+                    <span className="material-symbols-rounded text-4xl md:text-5xl">pause</span>
                   </Button>
                 )}
                 
-                <Button size="icon" variant="default" className="w-24 h-24 rounded-[2rem] shadow-lg" onClick={stopRecording}>
-                  <span className="material-symbols-rounded text-5xl">stop</span>
+                <Button size="icon" variant="default" className="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] shadow-xl hover:scale-105 transition-all" onClick={stopRecording}>
+                  <span className="material-symbols-rounded text-5xl md:text-6xl">stop</span>
                 </Button>
               </>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex flex-col items-center flex-1 w-full gap-6 animate-in fade-in zoom-in-95">
-          <audio ref={audioRef} src={recordedUrl!} onEnded={() => setIsPlaying(false)} className="hidden" />
+        <div className="flex flex-col items-center flex-1 w-full max-w-3xl gap-6 md:gap-8 animate-in fade-in zoom-in-95 pb-12">
+          <audio ref={audioRef} src={recordedUrl!} className="hidden" />
           
-          <div className="w-full bg-card p-6 rounded-3xl shadow-sm border border-border">
+          <div className="w-full bg-card p-6 md:p-10 rounded-[2rem] shadow-sm border border-border flex flex-col items-center">
             <Input 
               value={soundName} 
               onChange={(e) => setSoundName(e.target.value)} 
-              placeholder="소리 이름 입력..." 
-              className="text-2xl font-bold text-center h-auto py-4 bg-transparent border-none shadow-none focus-visible:ring-0 px-0"
+              placeholder="여기를 눌러 소리 이름을 지어주세요" 
+              className="text-2xl md:text-3xl font-bold text-center h-auto py-3 bg-transparent border-b-2 border-transparent hover:border-border focus:border-primary shadow-none focus-visible:ring-0 px-4 rounded-none w-full max-w-md transition-colors"
               autoFocus
             />
             
-            <div className="mt-8 flex justify-center mb-6">
-              <Button size="icon" variant="secondary" className="w-16 h-16 rounded-2xl" onClick={togglePlayback}>
-                <span className="material-symbols-rounded text-3xl">{isPlaying ? 'pause' : 'play_arrow'}</span>
-              </Button>
+            <div className="w-full mt-8 md:mt-12">
+              <TrimSlider 
+                duration={duration} 
+                trimStart={trimStart} 
+                trimEnd={trimEnd} 
+                currentTime={currentTime}
+                onChange={(start, end) => {
+                  setTrimStart(start);
+                  setTrimEnd(end);
+                  if (audioRef.current && (audioRef.current.currentTime < start || audioRef.current.currentTime > end)) {
+                    audioRef.current.currentTime = start;
+                    setCurrentTime(start);
+                  }
+                }}
+                onSeek={(time) => {
+                  if (audioRef.current) {
+                     audioRef.current.currentTime = time;
+                     setCurrentTime(time);
+                  }
+                }}
+              />
             </div>
-
-            <TrimSlider 
-              duration={duration} 
-              trimStart={trimStart} 
-              trimEnd={trimEnd} 
-              onChange={(start, end) => {
-                setTrimStart(start);
-                setTrimEnd(end);
-                if (audioRef.current && isPlaying) {
-                  audioRef.current.currentTime = start;
-                }
-              }} 
-            />
             
-            <div className="flex justify-center mt-2">
-               <Button variant="ghost" size="sm" onClick={() => { setTrimStart(0); setTrimEnd(duration); }}>
-                 구간 초기화
-               </Button>
+            <div className="flex flex-wrap items-center justify-center gap-4 mt-8 w-full relative">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 hidden md:block">
+                <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground font-bold" onClick={() => { setTrimStart(0); setTrimEnd(duration); }}>
+                  <span className="material-symbols-rounded text-lg">refresh</span>
+                  전체 구간 선택
+                </Button>
+              </div>
+
+              <Button size="icon" variant="outline" className="w-14 h-14 rounded-full shadow-sm" onClick={() => {
+                if (audioRef.current) {
+                  audioRef.current.currentTime = trimStart;
+                  setCurrentTime(trimStart);
+                }
+              }} title="구간 처음으로">
+                <span className="material-symbols-rounded text-2xl">skip_previous</span>
+              </Button>
+              
+              <Button size="icon" variant="default" className="w-20 h-20 rounded-full shadow-lg hover:scale-105 transition-transform" onClick={togglePlayback}>
+                <span className="material-symbols-rounded text-4xl">{isPlaying ? 'pause' : 'play_arrow'}</span>
+              </Button>
+              
+              {/* Spacer for mobile to balance */}
+              <div className="w-14 h-14 md:hidden"></div>
+            </div>
+            
+            <div className="mt-6 md:hidden w-full flex justify-center">
+               <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground font-bold" onClick={() => { setTrimStart(0); setTrimEnd(duration); }}>
+                  <span className="material-symbols-rounded text-lg">refresh</span>
+                  전체 구간 선택
+                </Button>
             </div>
           </div>
 
-          <div className="flex gap-4 w-full">
-            <Button variant="outline" className="flex-1 h-14 rounded-2xl text-lg" onClick={resetRecording}>
-              다시 녹음
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
+            <Button variant="outline" className="flex-1 h-16 rounded-[1.5rem] text-lg font-bold gap-2" onClick={resetRecording}>
+              <span className="material-symbols-rounded text-xl">delete</span>
+              다시 녹음하기
             </Button>
-            <Button variant="default" className="flex-1 h-14 rounded-2xl text-lg" onClick={saveSound}>
-              보관함에 저장
+            <Button variant="default" className="flex-1 h-16 rounded-[1.5rem] text-lg font-bold gap-2 shadow-md bg-secondary hover:bg-secondary/90 text-secondary-foreground" onClick={saveSound}>
+              <span className="material-symbols-rounded text-xl">save</span>
+              이 소리 저장하기
             </Button>
           </div>
         </div>
