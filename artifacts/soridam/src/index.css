@@ -52,7 +52,7 @@
 }
 
 :root {
-  --background: 45 30% 97%; /* #FCFAF5 */
+  --background: 45 30% 97%; 
   --foreground: 220 25% 25%;
   --border: 45 20% 85%;
   
@@ -73,19 +73,19 @@
   --popover-foreground: 220 25% 25%;
   --popover-border: 45 20% 85%;
 
-  --primary: 21 100% 61%; /* Playful Orange */
+  --primary: 21 100% 61%; 
   --primary-foreground: 0 0% 100%;
   
-  --secondary: 165 70% 45%; /* Mint Green */
+  --secondary: 165 70% 45%; 
   --secondary-foreground: 0 0% 100%;
 
   --muted: 45 20% 90%;
   --muted-foreground: 220 15% 55%;
 
-  --accent: 48 100% 55%; /* Sunny Yellow */
+  --accent: 48 100% 55%; 
   --accent-foreground: 220 25% 25%;
 
-  --destructive: 348 100% 61%; /* Pinkish Red */
+  --destructive: 348 100% 61%; 
   --destructive-foreground: 0 0% 100%;
 
   --input: 45 20% 85%;
@@ -155,5 +155,19 @@
     'GRAD' 0,
     'opsz' 24;
     vertical-align: middle;
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 10px;
   }
 }
