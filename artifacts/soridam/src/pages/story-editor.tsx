@@ -5,7 +5,7 @@ import { generateId, formatTime, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { getAudioContext, decodeAudioBlob, audioBufferToWav } from "@/lib/audio";
 
@@ -740,6 +740,7 @@ export default function StoryEditor() {
         <DialogContent className="max-h-[85vh] flex flex-col bg-card border-4 border-border shadow-2xl rounded-[2rem]">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black">소리 보관함</DialogTitle>
+            <DialogDescription className="pr-10 text-base">이야기에 넣을 소리를 골라주세요.</DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-2 mt-4 space-y-3 pb-4 custom-scrollbar">
             {librarySounds.length === 0 ? (
