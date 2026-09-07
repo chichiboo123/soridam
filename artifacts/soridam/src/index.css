@@ -1,8 +1,14 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/packages/pretendard/dist/web/static/pretendard-gov-dynamic-subset.min.css");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,1,0");
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
+
+/*
+ * 소리담 VER2 디자인 토큰
+ * -----------------------------------------------------------------------
+ * 색상은 모두 흰색/전경색 대비 WCAG AA(4.5:1)를 통과하도록 계산되어 있습니다.
+ * 밝은 브랜드 오렌지는 글자를 얹지 않는 장식 면(--brand-*)으로만 사용합니다.
+ */
 
 @custom-variant dark (&:is(.dark *));
 
@@ -10,6 +16,7 @@
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
   --color-border: hsl(var(--border));
+  --color-border-strong: hsl(var(--border-strong));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
 
@@ -23,151 +30,318 @@
 
   --color-primary: hsl(var(--primary));
   --color-primary-foreground: hsl(var(--primary-foreground));
-  --color-primary-border: var(--primary-border);
+  --color-primary-soft: hsl(var(--primary-soft));
+  --color-primary-tint: hsl(var(--primary-tint));
 
   --color-secondary: hsl(var(--secondary));
   --color-secondary-foreground: hsl(var(--secondary-foreground));
-  --color-secondary-border: var(--secondary-border);
+  --color-secondary-tint: hsl(var(--secondary-tint));
 
   --color-muted: hsl(var(--muted));
   --color-muted-foreground: hsl(var(--muted-foreground));
-  --color-muted-border: var(--muted-border);
 
   --color-accent: hsl(var(--accent));
   --color-accent-foreground: hsl(var(--accent-foreground));
-  --color-accent-border: var(--accent-border);
+  --color-accent-tint: hsl(var(--accent-tint));
 
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
-  --color-destructive-border: var(--destructive-border);
+  --color-destructive-tint: hsl(var(--destructive-tint));
+
+  --color-brand: hsl(var(--brand));
+  --color-brand-ink: hsl(var(--brand-ink));
 
   --font-sans: var(--app-font-sans);
   --font-serif: var(--app-font-serif);
   --font-mono: var(--app-font-mono);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xs: 0.5rem;
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+  --radius-3xl: 2.75rem;
 }
 
-:root {
-  --background: 45 30% 97%; 
-  --foreground: 220 25% 25%;
-  --border: 45 20% 85%;
-  
-  --card: 0 0% 100%;
-  --card-foreground: 220 25% 25%;
-  --card-border: 45 20% 85%;
-
-  --sidebar: 45 30% 97%;
-  --sidebar-foreground: 220 25% 25%;
-  --sidebar-border: 45 20% 85%;
-  --sidebar-primary: 21 100% 61%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 45 20% 85%;
-  --sidebar-accent-foreground: 220 25% 25%;
-  --sidebar-ring: 21 100% 61%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 220 25% 25%;
-  --popover-border: 45 20% 85%;
-
-  --primary: 21 100% 61%; 
-  --primary-foreground: 0 0% 100%;
-  
-  --secondary: 165 70% 45%; 
-  --secondary-foreground: 0 0% 100%;
-
-  --muted: 45 20% 90%;
-  --muted-foreground: 220 15% 55%;
-
-  --accent: 48 100% 55%; 
-  --accent-foreground: 220 25% 25%;
-
-  --destructive: 348 100% 61%; 
-  --destructive-foreground: 0 0% 100%;
-
-  --input: 45 20% 85%;
-  --ring: 21 100% 61%;
-
-  --app-font-sans: 'Pretendard GOV', 'Pretendard', sans-serif;
-  --app-font-serif: 'Pretendard GOV', 'Pretendard', sans-serif;
-  --app-font-mono: 'Pretendard GOV', 'Pretendard', monospace;
-  --radius: 1.5rem; 
-}
-
+:root,
 .dark {
-  /* Enforce light mode for this app intentionally */
-  --background: 45 30% 97%;
-  --foreground: 220 25% 25%;
-  --border: 45 20% 85%;
-  
+  color-scheme: light;
+
+  /* 표면 */
+  --background: 42 42% 96%;
+  --foreground: 220 27% 22%;
   --card: 0 0% 100%;
-  --card-foreground: 220 25% 25%;
-  --card-border: 45 20% 85%;
-
-  --sidebar: 45 30% 97%;
-  --sidebar-foreground: 220 25% 25%;
-  --sidebar-border: 45 20% 85%;
-  --sidebar-primary: 21 100% 61%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 45 20% 85%;
-  --sidebar-accent-foreground: 220 25% 25%;
-  --sidebar-ring: 21 100% 61%;
-
+  --card-foreground: 220 27% 22%;
+  --card-border: 40 24% 86%;
   --popover: 0 0% 100%;
-  --popover-foreground: 220 25% 25%;
-  --popover-border: 45 20% 85%;
+  --popover-foreground: 220 27% 22%;
+  --popover-border: 40 24% 86%;
 
-  --primary: 21 100% 61%;
+  --border: 40 24% 86%;
+  --border-strong: 38 20% 76%;
+  --input: 40 24% 86%;
+
+  /* 액션 — 흰 글자 대비 5.0:1 */
+  --primary: 14 85% 43%;
   --primary-foreground: 0 0% 100%;
-  
-  --secondary: 165 70% 45%;
+  --primary-tint: 18 90% 95%;
+
+  /* 브랜드 장식용 밝은 오렌지 (글자 없음) */
+  --brand: 21 100% 61%;
+  --brand-ink: 14 85% 34%;
+  --primary-soft: 21 100% 61%;
+
+  /* 보조 — 흰 글자 대비 5.0:1 */
+  --secondary: 170 75% 28%;
   --secondary-foreground: 0 0% 100%;
+  --secondary-tint: 168 55% 94%;
 
-  --muted: 45 20% 90%;
-  --muted-foreground: 220 15% 55%;
+  /* 강조 — 어두운 글자 대비 11.3:1 */
+  --accent: 43 100% 62%;
+  --accent-foreground: 26 60% 16%;
+  --accent-tint: 45 100% 93%;
 
-  --accent: 48 100% 55%;
-  --accent-foreground: 220 25% 25%;
-
-  --destructive: 348 100% 61%;
+  /* 위험 — 흰 글자 대비 5.4:1 */
+  --destructive: 350 78% 46%;
   --destructive-foreground: 0 0% 100%;
+  --destructive-tint: 350 90% 96%;
 
-  --input: 45 20% 85%;
-  --ring: 21 100% 61%;
+  /* 중립 — 배경 대비 5.4:1 */
+  --muted: 42 28% 91%;
+  --muted-foreground: 220 14% 42%;
+
+  --ring: 14 85% 43%;
+
+  --sidebar: 42 42% 96%;
+  --sidebar-foreground: 220 27% 22%;
+  --sidebar-border: 40 24% 86%;
+  --sidebar-primary: 14 85% 43%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 42 28% 91%;
+  --sidebar-accent-foreground: 220 27% 22%;
+  --sidebar-ring: 14 85% 43%;
+
+  --app-font-sans: 'Pretendard GOV', 'Pretendard', -apple-system,
+    BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --app-font-serif: var(--app-font-sans);
+  --app-font-mono: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas',
+    var(--app-font-sans), monospace;
+
+  --radius: 1.25rem;
+
+  /* 앱 셸 치수 — 레이아웃과 페이지가 공유하는 단일 출처 */
+  --sd-safe-top: env(safe-area-inset-top, 0px);
+  --sd-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --sd-safe-left: env(safe-area-inset-left, 0px);
+  --sd-safe-right: env(safe-area-inset-right, 0px);
+  --sd-nav-height: 4.5rem;
+  --sd-rail-width: 7rem;
 }
 
 @layer base {
   * {
     @apply border-border;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
   }
 
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    /* 하단 네비 위에서 당겨서 새로고침이 타임라인 드래그를 가로채지 않도록 */
+    overscroll-behavior-y: none;
+    font-weight: 500;
+    line-height: 1.6;
   }
 
+  /* 키보드 사용자에게 항상 보이는 포커스 링 (마우스 클릭에는 나타나지 않음) */
+  :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  /* KRDS 타이포 스케일 */
+  h1 {
+    font-size: clamp(1.625rem, 1.35rem + 1.4vw, 2.25rem);
+    line-height: 1.3;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  h2 {
+    font-size: clamp(1.25rem, 1.1rem + 0.75vw, 1.5rem);
+    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: -0.015em;
+  }
+  h3 {
+    font-size: 1.125rem;
+    line-height: 1.45;
+    font-weight: 700;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  /* iOS Safari는 16px 미만 입력란에 포커스가 가면 화면을 확대합니다. */
+  input,
+  textarea,
+  select {
+    font-size: 1rem;
+  }
+
+  /*
+   * 아이콘.
+   * 학교망처럼 폰트 CDN이 막힌 환경에서 아이콘 폰트가 오지 않으면
+   * 리거처 원문('mic', 'library_music')이 그대로 찍히면서 버튼과 하단 메뉴가
+   * 다 밀려버립니다. 그래서 아이콘 자리를 1em 정사각형으로 고정하고,
+   * 폰트가 실제로 준비됐을 때만(main.tsx에서 icons-ready 부여) 글리프를
+   * 보여 줍니다. 못 받아도 레이아웃은 그대로 유지됩니다.
+   */
   .material-symbols-rounded {
+    font-family: 'Material Symbols Rounded';
+    font-weight: normal;
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-grid;
+    place-items: center;
+    width: 1em;
+    height: 1em;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
     font-variation-settings:
-    'FILL' 1,
-    'wght' 600,
-    'GRAD' 0,
-    'opsz' 24;
-    vertical-align: middle;
+      'FILL' 1,
+      'wght' 500,
+      'GRAD' 0,
+      'opsz' 24;
+    user-select: none;
+  }
+
+  html:not(.icons-ready) .material-symbols-rounded {
+    overflow: hidden;
+    color: transparent;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
 @layer utilities {
+  /*
+   * 입체(팝) 버튼 시스템
+   * 기존에는 shadow-[0_6px_0_0_rgba(...)] 같은 임의값이 화면마다 흩어져 있었습니다.
+   * --pop-depth 하나로 그림자 깊이와 눌림 이동량이 함께 움직입니다.
+   */
+  .sd-pop {
+    --pop-depth: 4px;
+    --pop-color: rgba(15, 23, 42, 0.16);
+    box-shadow: 0 var(--pop-depth) 0 0 var(--pop-color);
+    transition:
+      transform 120ms ease,
+      box-shadow 120ms ease,
+      background-color 120ms ease;
+  }
+  .sd-pop-sm {
+    --pop-depth: 3px;
+  }
+  .sd-pop-lg {
+    --pop-depth: 6px;
+  }
+  .sd-pop-xl {
+    --pop-depth: 8px;
+  }
+  .sd-pop-soft {
+    --pop-color: rgba(15, 23, 42, 0.07);
+  }
+
+  /* 눌렀을 때 그림자 깊이만큼 내려앉는 물리적 피드백 */
+  .sd-press:active:not(:disabled) {
+    transform: translateY(var(--pop-depth, 4px));
+    box-shadow: 0 0 0 0 var(--pop-color, rgba(15, 23, 42, 0.16));
+  }
+  .sd-press:hover:not(:disabled):not(:active) {
+    transform: translateY(-2px);
+    box-shadow: 0 calc(var(--pop-depth, 4px) + 2px) 0 0
+      var(--pop-color, rgba(15, 23, 42, 0.16));
+  }
+  @media (hover: none) {
+    /* 터치 기기에서는 hover 상태가 눌린 뒤 남아있지 않도록 */
+    .sd-press:hover:not(:disabled):not(:active) {
+      transform: none;
+      box-shadow: 0 var(--pop-depth, 4px) 0 0
+        var(--pop-color, rgba(15, 23, 42, 0.16));
+    }
+  }
+
+  /* 카드 테두리 — 두꺼운 아웃라인 스타일을 한 곳에서 관리 */
+  .sd-card {
+    background-color: hsl(var(--card));
+    border: 2px solid hsl(var(--border));
+    border-radius: var(--radius-xl);
+  }
+
+  /* 안전 영역 */
+  .sd-safe-bottom {
+    padding-bottom: var(--sd-safe-bottom);
+  }
+  .sd-safe-x {
+    padding-left: var(--sd-safe-left);
+    padding-right: var(--sd-safe-right);
+  }
+
+  /* 최소 터치 타겟 44px 보장 (WCAG 2.5.5 / iOS HIG) */
+  .sd-tap {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
   .custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: hsl(var(--border));
+    background-color: hsl(var(--border-strong));
     border-radius: 10px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  /* 시각적으로만 숨김 — 스크린리더는 읽음 */
+  .sr-only-focusable:not(:focus):not(:focus-within) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
   }
 }

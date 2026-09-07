@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { AppErrorFallback } from '@/components/error-fallback';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import NotFound from '@/pages/not-found';
@@ -38,7 +39,11 @@ function Router() {
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
+  return (
+    <ErrorBoundary resetKey={location} FallbackComponent={AppErrorFallback}>
+      {children}
+    </ErrorBoundary>
+  );
 }
 
 function App() {

@@ -2,24 +2,80 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>소리담</title>
-    <meta name="description" content="소리담 — built on Replit. Update this description to reflect the app." />
+    <!--
+      viewport-fit=cover: 아이폰 노치/홈 인디케이터 영역까지 배경을 채우고
+      CSS의 env(safe-area-inset-*) 값이 실제로 동작하게 합니다.
+      maximum-scale 제거: 확대를 막으면 WCAG 1.4.4(텍스트 크기 조정)에 위배됩니다.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
+    <title>소리담 — 소리를 담다, 이야기를 담다</title>
+    <meta
+      name="description"
+      content="주변의 소리를 녹음하고 다듬어 블록처럼 배치해 나만의 소리 이야기를 만드는 어린이 친화적인 웹앱입니다. 로그인 없이 모든 기록이 내 브라우저에만 저장됩니다."
+    />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="소리담" />
-    <meta property="og:description" content="소리담 — built on Replit. Update this description to reflect the app." />
+    <meta name="author" content="교육뮤지컬 꿈꾸는 치수쌤" />
+
+    <meta property="og:title" content="소리담 — 소리를 담다, 이야기를 담다" />
+    <meta
+      property="og:description"
+      content="주변의 소리를 녹음하고 다듬어 블록처럼 배치해 나만의 소리 이야기를 만드는 어린이 친화적인 웹앱입니다."
+    />
     <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="소리담" />
-    <meta name="twitter:description" content="소리담 — built on Replit. Update this description to reflect the app." />
-    <meta name="theme-color" content="#ff6f3d" />
+    <meta property="og:locale" content="ko_KR" />
+    <meta property="og:site_name" content="소리담" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="소리담 — 소리를 담다, 이야기를 담다" />
+    <meta
+      name="twitter:description"
+      content="주변의 소리를 녹음하고 다듬어 블록처럼 배치해 나만의 소리 이야기를 만드는 어린이 친화적인 웹앱입니다."
+    />
+
+    <meta name="theme-color" content="#F7F3EA" />
+    <meta name="color-scheme" content="light" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="소리담" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" href="%BASE_URL%favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <!--
+      display=block: 아이콘 폰트가 도착하기 전에 'mic', 'delete' 같은
+      리거처 원문이 화면에 그대로 노출되던 문제를 막습니다.
+      CSS @import 대신 head의 link로 올려 요청 시점도 앞당깁니다.
+    -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&display=block"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* 번들 로드 전 흰 화면 대신 앱 배경색을 먼저 보여줍니다. */
+      html,
+      body,
+      #root {
+        height: 100%;
+        margin: 0;
+        background-color: #f7f3ea;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <p style="padding: 24px; font-family: sans-serif">
+        소리담을 사용하려면 자바스크립트를 켜 주세요.
+      </p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
