@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "소리담"
+description = "스마트폰, 태블릿, PC에서 주변 소리를 녹음하고 자르고 기기에 저장하며, 여러 소리를 타임라인에 배치해 하나의 소리 이야기로 만들 수 있는 모바일 우선 웹앱입니다."
+version = "1.0.0"
+id = "artifacts/soridam"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23551
+
+[services.development]
+run = "pnpm --filter @workspace/soridam run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/soridam", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/soridam/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23551"
+BASE_PATH = "/"

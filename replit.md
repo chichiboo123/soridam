@@ -1,6 +1,6 @@
-# [Project name]
+# 소리담
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+주변 소리를 녹음·편집·저장하고 여러 소리를 배치해 소리 이야기를 만드는 모바일 우선 웹앱입니다.
 
 ## Run & Operate
 
@@ -9,7 +9,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- 소리담은 브라우저 IndexedDB만 사용하며 서버 환경 변수는 필요하지 않음
 
 ## Stack
 
@@ -19,26 +19,38 @@ _Replace the heading above with the project's name, and this line with one sente
 - Validation: Zod (`zod/v4`), `drizzle-zod`
 - API codegen: Orval (from OpenAPI spec)
 - Build: esbuild (CJS bundle)
+- Frontend: React + Vite, MediaRecorder, Web Audio API, IndexedDB
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/soridam/` — 배포 가능한 소리담 웹앱
+- `artifacts/soridam/src/features/` — 녹음, 저장, 오디오 편집 및 이야기 기능
+- `README.md` — 실행, 빌드, 배포 및 브라우저 지원 안내
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- 로그인과 서버 저장 없이 모든 사용자 오디오를 IndexedDB에 로컬 저장
+- 원본 소리를 유지하고 자르기 정보를 별도로 관리해 원본 복원 지원
+- 편집 및 이야기 결과는 Web Audio API를 통해 WAV로 렌더링
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- 소리 녹음, 재생, 앞뒤 자르기, 저장 및 다운로드
+- 저장된 소리 검색·정렬·이름 변경·삭제
+- 여러 소리를 배치하고 겹쳐 재생하는 소리 이야기 편집
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- 기본 폰트는 Pretendard GOV
+- Google Material Symbols Rounded 아이콘과 한국어 텍스트 라벨을 함께 사용
+- 푸터 문구는 `Created by. 교육뮤지컬 꿈꾸는 치수쌤`, 링크는 `https://litt.ly/chichiboo`
+- 완성된 소스는 GitHub 업로드를 고려해 유지
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- 마이크는 localhost 또는 HTTPS 보안 컨텍스트에서만 동작
+- 모바일 Safari 오디오는 반드시 사용자 동작 안에서 시작
+- 대용량 오디오를 localStorage나 서버 DB에 넣지 않음
 
 ## Pointers
 
