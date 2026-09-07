@@ -43,7 +43,9 @@ PORT=5173 BASE_PATH=/ pnpm --filter @workspace/soridam run build
 
 ## 배포 방법
 
-정적 호스팅 서비스에서 다음 설정을 사용합니다.
+`main` 브랜치에 변경 사항이 올라가면 GitHub Actions가 타입 검사와 빌드를 실행하고, 성공한 결과를 `github-pages` 배포 환경을 통해 `https://soridam.chichiboo.link`에 자동 배포합니다. 저장소의 **Settings → Pages → Build and deployment → Source**는 **GitHub Actions**로, **Custom domain**은 `soridam.chichiboo.link`로 설정하세요. DNS에는 `soridam`을 해당 GitHub Pages 호스트로 연결하는 `CNAME` 레코드가 필요합니다. Actions 탭의 **Deploy Soridam to GitHub Pages** 워크플로에서 수동 배포도 실행할 수 있습니다.
+
+다른 정적 호스팅 서비스를 사용한다면 다음 설정을 사용합니다.
 
 - 빌드 명령: `pnpm install --frozen-lockfile && PORT=5173 BASE_PATH=/ pnpm --filter @workspace/soridam run build`
 - 출력 디렉터리: `artifacts/soridam/dist/public`
