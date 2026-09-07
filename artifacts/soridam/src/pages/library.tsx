@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatTime } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { TrimSlider } from "@/components/ui/trim-slider";
 
 export default function Library() {
@@ -21,6 +22,7 @@ export default function Library() {
   const [editName, setEditName] = useState("");
   const [editTrimStart, setEditTrimStart] = useState(0);
   const [editTrimEnd, setEditTrimEnd] = useState(0);
+  const [deleteSound, setDeleteSound] = useState<Sound | null>(null);
 
   useEffect(() => {
     loadSounds();
@@ -65,14 +67,15 @@ export default function Library() {
     };
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("정말 삭제할까요?")) {
-      await db.deleteSound(id);
+  const handleDelete = async () => {
+    if (deleteSound) {
+      await db.deleteSound(deleteSound.id);
       loadSounds();
-      if (playingId === id) {
+      if (playingId === deleteSound.id) {
         audioRef.current?.pause();
         setPlayingId(null);
       }
+      setDeleteSound(null);
     }
   };
 
@@ -164,7 +167,7 @@ export default function Library() {
                   <Button variant="ghost" size="icon" className="hover:bg-muted rounded-xl h-12 w-12" onClick={() => downloadSound(sound)}>
                     <span className="material-symbols-rounded text-2xl">download</span>
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl h-12 w-12" onClick={() => handleDelete(sound.id)}>
+                  <Button variant="ghost" size="icon" aria-label={`${sound.name} 삭제`} className="text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl h-12 w-12" onClick={() => setDeleteSound(sound)}>
                     <span className="material-symbols-rounded text-2xl">delete</span>
                   </Button>
                 </div>
@@ -178,6 +181,7 @@ export default function Library() {
         <DialogContent className="sm:max-w-md bg-card border-4 border-border shadow-2xl rounded-[2.5rem]">
           <DialogHeader>
             <DialogTitle className="text-2xl font-black">소리 고치기</DialogTitle>
+            <DialogDescription className="pr-10 text-base">이름과 사용할 소리 구간을 바꿀 수 있어요.</DialogDescription>
           </DialogHeader>
           {editSound && (
             <div className="py-4 flex flex-col gap-8">
@@ -203,6 +207,22 @@ export default function Library() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteSound} onOpenChange={(open) => !open && setDeleteSound(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="mx-auto mb-1 grid size-16 place-items-center rounded-2xl bg-destructive/10 text-destructive sm:mx-0">
+              <span className="material-symbols-rounded text-4xl" aria-hidden="true">delete</span>
+            </div>
+            <AlertDialogTitle className="text-2xl font-black">이 소리를 지울까요?</AlertDialogTitle>
+            <AlertDialogDescription className="text-base leading-relaxed">‘{deleteSound?.name}’ 소리는 삭제하면 다시 되돌릴 수 없어요.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="h-12 rounded-xl text-base font-bold">취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="h-12 rounded-xl bg-destructive text-base font-bold text-destructive-foreground hover:bg-destructive/90">삭제하기</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
