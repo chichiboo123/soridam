@@ -32,7 +32,6 @@ jobs:
           version: 10
 
       - name: Configure GitHub Pages
-        id: pages
         uses: actions/configure-pages@v5
 
       - name: Install dependencies
@@ -44,7 +43,7 @@ jobs:
       - name: Build
         env:
           PORT: 5173
-          BASE_PATH: ${{ steps.pages.outputs.base_path }}/
+          BASE_PATH: /
         run: pnpm --filter @workspace/soridam run build
 
       - name: Add the single-page app fallback
