@@ -14,6 +14,7 @@ export default function Home() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
   
@@ -24,6 +25,8 @@ export default function Home() {
   const streamRef = useRef<MediaStream | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number>(0);
+  const recordingTimeRef = useRef(0);
+  const startingRef = useRef(false);
 
   // Review state
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
@@ -49,8 +52,9 @@ export default function Home() {
     };
   }, [recordedUrl]);
 
-  const requestPermission = async () => {
+  const requestPermission = async (): Promise<MediaStream | null> => {
     try {
+      streamRef.current?.getTracks().forEach(track => track.stop());
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
       setHasPermission(true);
@@ -61,7 +65,7 @@ export default function Home() {
       analyser.fftSize = 256;
       source.connect(analyser);
       analyserRef.current = analyser;
-      
+      return stream;
     } catch (err) {
       setHasPermission(false);
       toast({
@@ -69,62 +73,134 @@ export default function Home() {
         description: "녹음을 위해 마이크 권한이 필요합니다.",
         variant: "destructive"
       });
+      return null;
     }
   };
 
   const startRecording = async () => {
-    if (!hasPermission) await requestPermission();
-    if (!streamRef.current) return;
+    if (startingRef.current || isRecording) return;
+    startingRef.current = true;
+    setIsStarting(true);
 
-    audioChunksRef.current = [];
-    const options = { mimeType: 'audio/webm' };
-    const type = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 
-                 MediaRecorder.isTypeSupported('audio/mp4') ? 'audio/mp4' : '';
-                 
-    const mr = new MediaRecorder(streamRef.current, type ? { mimeType: type } : undefined);
-    
-    mr.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunksRef.current.push(e.data);
-    };
-    
-    mr.onstop = () => {
-      const blob = new Blob(audioChunksRef.current, { type: mr.mimeType });
-      setRecordedBlob(blob);
-      const url = URL.createObjectURL(blob);
-      setRecordedUrl(url);
-      
-      // Get exact duration
-      const tempAudio = new Audio(url);
-      tempAudio.onloadedmetadata = () => {
-        setDuration(tempAudio.duration);
-        setTrimStart(0);
-        setTrimEnd(tempAudio.duration);
+    try {
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+        throw new Error("이 브라우저에서는 녹음 기능을 사용할 수 없습니다.");
+      }
+
+      // A fresh stream avoids reusing a track that the browser has already ended.
+      const stream = await requestPermission();
+      if (!stream) return;
+
+      audioChunksRef.current = [];
+      const mimeCandidates = [
+        "audio/webm;codecs=opus",
+        "audio/mp4;codecs=mp4a.40.2",
+        "audio/webm",
+        "audio/mp4",
+      ];
+      const supportedType = mimeCandidates.find(type => MediaRecorder.isTypeSupported(type));
+
+      const attachHandlers = (recorder: MediaRecorder) => {
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) audioChunksRef.current.push(event.data);
+        };
+        recorder.onerror = () => {
+          toast({
+            title: "녹음 중 문제가 발생했어요",
+            description: "마이크 연결을 확인한 뒤 다시 시도해 주세요.",
+            variant: "destructive",
+          });
+        };
+        recorder.onstop = async () => {
+          const blobType = recorder.mimeType || supportedType || "audio/webm";
+          const blob = new Blob(audioChunksRef.current, { type: blobType });
+          if (blob.size === 0) {
+            toast({
+              title: "녹음된 소리가 없어요",
+              description: "마이크를 확인하고 조금 더 길게 녹음해 주세요.",
+              variant: "destructive",
+            });
+            return;
+          }
+
+          let measuredDuration = recordingTimeRef.current;
+          try {
+            const audioContext = getAudioContext();
+            const decoded = await audioContext.decodeAudioData(await blob.arrayBuffer());
+            if (Number.isFinite(decoded.duration) && decoded.duration > 0) {
+              measuredDuration = decoded.duration;
+            }
+          } catch {
+            // Some Safari/WebM combinations cannot be decoded by Web Audio.
+            // The monotonic recording timer is a safe finite fallback.
+          }
+
+          measuredDuration = Number.isFinite(measuredDuration) && measuredDuration > 0
+            ? measuredDuration
+            : 0.1;
+          setDuration(measuredDuration);
+          setTrimStart(0);
+          setTrimEnd(measuredDuration);
+          setCurrentTime(0);
+          setRecordedBlob(blob);
+          setRecordedUrl(URL.createObjectURL(blob));
+        };
       };
-    };
 
-    mr.start(100); // chunk every 100ms
-    mediaRecorderRef.current = mr;
-    setIsRecording(true);
-    setIsPaused(false);
-    setRecordingTime(0);
-
-    timerRef.current = window.setInterval(() => {
-      if (mediaRecorderRef.current?.state === 'recording') {
-        setRecordingTime(prev => prev + 0.1);
+      let recorder = new MediaRecorder(stream, supportedType ? { mimeType: supportedType } : undefined);
+      attachHandlers(recorder);
+      try {
+        // Omitting a timeslice is more reliable in Safari and embedded previews.
+        recorder.start();
+      } catch {
+        // Some browsers report a MIME type as supported but still reject start().
+        recorder = new MediaRecorder(stream);
+        attachHandlers(recorder);
+        recorder.start();
       }
-    }, 100);
 
-    const updateLevel = () => {
-      if (analyserRef.current && mediaRecorderRef.current?.state === 'recording') {
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteFrequencyData(dataArray);
-        let sum = 0;
-        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-        setAudioLevel(sum / dataArray.length);
-      }
-      rafRef.current = requestAnimationFrame(updateLevel);
-    };
-    updateLevel();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setIsPaused(false);
+      setRecordingTime(0);
+      recordingTimeRef.current = 0;
+
+      timerRef.current = window.setInterval(() => {
+        if (mediaRecorderRef.current?.state === 'recording') {
+          setRecordingTime(prev => {
+            const next = prev + 0.1;
+            recordingTimeRef.current = next;
+            return next;
+          });
+        }
+      }, 100);
+
+      const updateLevel = () => {
+        if (analyserRef.current && mediaRecorderRef.current?.state === 'recording') {
+          const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(dataArray);
+          let sum = 0;
+          for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+          setAudioLevel(sum / dataArray.length);
+        }
+        rafRef.current = requestAnimationFrame(updateLevel);
+      };
+      updateLevel();
+    } catch (error) {
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      setHasPermission(false);
+      toast({
+        title: "녹음을 시작할 수 없어요",
+        description: error instanceof Error && error.message
+          ? error.message
+          : "마이크를 사용하는 다른 앱을 닫고 다시 시도해 주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      startingRef.current = false;
+      setIsStarting(false);
+    }
   };
 
   const pauseRecording = () => {
@@ -277,8 +353,8 @@ export default function Home() {
           {/* Controls */}
           <div className="flex items-center gap-6">
             {!isRecording ? (
-              <Button size="icon" className="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] shadow-xl hover:scale-105 transition-all bg-destructive text-destructive-foreground hover:bg-destructive/90 group" onClick={startRecording}>
-                <span className="material-symbols-rounded text-5xl md:text-6xl group-hover:scale-110 transition-transform">mic</span>
+              <Button size="icon" disabled={isStarting} aria-label={isStarting ? "마이크 준비 중" : "녹음 시작"} className="w-24 h-24 md:w-28 md:h-28 rounded-[2rem] shadow-xl hover:scale-105 transition-all bg-destructive text-destructive-foreground hover:bg-destructive/90 group" onClick={startRecording}>
+                <span className="material-symbols-rounded text-5xl md:text-6xl group-hover:scale-110 transition-transform">{isStarting ? "hourglass_top" : "mic"}</span>
               </Button>
             ) : (
               <>
