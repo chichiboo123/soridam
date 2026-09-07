@@ -14,6 +14,7 @@ interface TrimSliderProps {
 export function TrimSlider({ duration, trimStart, trimEnd, currentTime = trimStart, onChange, onSeek, className }: TrimSliderProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = React.useState<'start' | 'end' | null>(null);
+  const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : 0;
 
   // Generate a stable pseudorandom waveform based on duration length so it feels natural but consistent
   const waveform = React.useMemo(() => {
@@ -36,18 +37,22 @@ export function TrimSlider({ duration, trimStart, trimEnd, currentTime = trimSta
   };
 
   const handleContainerPointerDown = (e: React.PointerEvent) => {
-    if (isDragging || !containerRef.current || !onSeek) return;
+    if (isDragging || !containerRef.current || !onSeek || safeDuration === 0) return;
     const rect = containerRef.current.getBoundingClientRect();
+    if (!Number.isFinite(rect.width) || rect.width <= 0) return;
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    onSeek(percent * duration);
+    const nextTime = percent * safeDuration;
+    if (Number.isFinite(nextTime)) onSeek(nextTime);
   };
 
   React.useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
-      if (!isDragging || !containerRef.current) return;
+      if (!isDragging || !containerRef.current || safeDuration === 0) return;
       const rect = containerRef.current.getBoundingClientRect();
+      if (!Number.isFinite(rect.width) || rect.width <= 0) return;
       const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      const newValue = percent * duration;
+      const newValue = percent * safeDuration;
+      if (!Number.isFinite(newValue)) return;
 
       if (isDragging === 'start') {
         onChange(Math.min(newValue, trimEnd - 0.1), trimEnd);
@@ -68,18 +73,22 @@ export function TrimSlider({ duration, trimStart, trimEnd, currentTime = trimSta
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isDragging, duration, trimStart, trimEnd, onChange]);
+  }, [isDragging, safeDuration, trimStart, trimEnd, onChange]);
 
-  const startPercent = (trimStart / duration) * 100 || 0;
-  const endPercent = (trimEnd / duration) * 100 || 100;
-  const playheadPercent = (currentTime / duration) * 100 || 0;
+  const toPercent = (value: number, fallback: number) => {
+    if (safeDuration === 0 || !Number.isFinite(value)) return fallback;
+    return Math.max(0, Math.min(100, (value / safeDuration) * 100));
+  };
+  const startPercent = toPercent(trimStart, 0);
+  const endPercent = toPercent(trimEnd, 100);
+  const playheadPercent = toPercent(currentTime, 0);
 
   return (
     <div className={cn("w-full select-none touch-none flex flex-col gap-3", className)}>
       {/* Header Info */}
       <div className="flex justify-between text-xs font-bold text-muted-foreground font-mono px-1">
         <span>0:00</span>
-        <span>{formatTime(duration)}</span>
+        <span>{formatTime(safeDuration)}</span>
       </div>
       
       {/* Timeline container */}

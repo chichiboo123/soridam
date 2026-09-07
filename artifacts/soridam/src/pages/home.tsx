@@ -327,9 +327,12 @@ export default function Home() {
                   }
                 }}
                 onSeek={(time) => {
-                  if (audioRef.current) {
-                     audioRef.current.currentTime = time;
-                     setCurrentTime(time);
+                    if (audioRef.current && Number.isFinite(time) && time >= 0) {
+                       const seekLimit = Number.isFinite(duration) && duration > 0 ? duration : 0;
+                       if (seekLimit === 0) return;
+                       const safeTime = Math.min(time, seekLimit);
+                       audioRef.current.currentTime = safeTime;
+                       setCurrentTime(safeTime);
                   }
                 }}
               />
