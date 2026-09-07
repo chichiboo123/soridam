@@ -66,7 +66,7 @@ export default function Library() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("정말 삭제하시겠습니까?")) {
+    if (confirm("정말 삭제할까요?")) {
       await db.deleteSound(id);
       loadSounds();
       if (playingId === id) {
@@ -95,7 +95,7 @@ export default function Library() {
       });
       setEditSound(null);
       loadSounds();
-      toast({ title: "수정 완료" });
+      toast({ title: "수정 완료!" });
     } catch (e) {
       toast({ title: "오류", variant: "destructive" });
     }
@@ -105,7 +105,7 @@ export default function Library() {
     const url = URL.createObjectURL(sound.audioBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${sound.name}.webm`; // In real app, we'd export to WAV using audio buffer, but this is simple raw download
+    a.download = `${sound.name}.webm`; 
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -115,58 +115,57 @@ export default function Library() {
   return (
     <div className="flex flex-col h-full p-4 md:p-8 max-w-4xl mx-auto w-full">
       <div className="flex items-center justify-between mb-8 mt-4">
-        <h1 className="text-3xl font-bold font-serif">소리 보관함</h1>
+        <h1 className="text-4xl font-black">소리 보관함</h1>
       </div>
 
-      <div className="mb-6 relative">
-        <span className="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">search</span>
+      <div className="mb-8 relative">
+        <span className="material-symbols-rounded absolute left-5 top-1/2 -translate-y-1/2 text-muted-foreground text-3xl">search</span>
         <Input 
-          className="pl-12 bg-card border-none shadow-sm h-14 rounded-2xl text-lg" 
-          placeholder="소리 검색..." 
+          className="pl-16 bg-card border-4 border-border shadow-[0_4px_0_0_rgba(0,0,0,0.05)] h-16 rounded-[2rem] text-xl font-bold focus-visible:ring-0 focus:border-primary transition-all" 
+          placeholder="소리 찾기..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto pb-20">
+      <div className="flex-1 overflow-y-auto pb-20 px-1">
         {filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-4">
-            <span className="material-symbols-rounded text-6xl opacity-20">library_music</span>
-            <p>보관된 소리가 없습니다.</p>
+          <div className="flex flex-col items-center justify-center h-64 text-muted-foreground gap-4 bg-muted/30 rounded-[2.5rem] border-4 border-dashed border-border">
+            <span className="material-symbols-rounded text-6xl opacity-40">library_music</span>
+            <p className="font-bold text-lg">보관된 소리가 없어요.</p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-5">
             {filtered.map(sound => (
-              <div key={sound.id} className="bg-card p-4 rounded-3xl flex items-center gap-4 shadow-sm border border-border/50 group">
+              <div key={sound.id} className="bg-card p-5 rounded-[2rem] flex items-center gap-5 border-4 border-border shadow-[0_6px_0_0_rgba(0,0,0,0.05)] hover:-translate-y-1 hover:shadow-[0_8px_0_0_rgba(0,0,0,0.05)] transition-all group">
                 <Button 
                   size="icon" 
-                  variant={playingId === sound.id ? "default" : "secondary"} 
-                  className="w-14 h-14 rounded-2xl shrink-0"
+                  className={`w-16 h-16 rounded-[1.25rem] shrink-0 shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all ${playingId === sound.id ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}
                   onClick={() => handlePlay(sound)}
                 >
-                  <span className="material-symbols-rounded text-3xl">
+                  <span className="material-symbols-rounded text-4xl">
                     {playingId === sound.id ? 'pause' : 'play_arrow'}
                   </span>
                 </Button>
                 
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-lg truncate">{sound.name}</h3>
-                  <div className="text-sm text-muted-foreground flex gap-2 font-mono mt-1">
-                    <span>{formatTime(sound.trimEnd - sound.trimStart)}</span>
-                    <span>•</span>
+                  <h3 className="font-black text-xl md:text-2xl truncate">{sound.name}</h3>
+                  <div className="text-sm md:text-base text-muted-foreground flex gap-3 font-mono mt-1 font-bold">
+                    <span className="bg-muted px-2 py-0.5 rounded-lg">{formatTime(sound.trimEnd - sound.trimStart)}</span>
+                    <span className="opacity-50">•</span>
                     <span>{new Date(sound.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
 
                 <div className="flex gap-2 shrink-0 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon" onClick={() => openEdit(sound)}>
-                    <span className="material-symbols-rounded">edit</span>
+                  <Button variant="ghost" size="icon" className="hover:bg-muted rounded-xl h-12 w-12" onClick={() => openEdit(sound)}>
+                    <span className="material-symbols-rounded text-2xl">edit</span>
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={() => downloadSound(sound)}>
-                    <span className="material-symbols-rounded">download</span>
+                  <Button variant="ghost" size="icon" className="hover:bg-muted rounded-xl h-12 w-12" onClick={() => downloadSound(sound)}>
+                    <span className="material-symbols-rounded text-2xl">download</span>
                   </Button>
-                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" onClick={() => handleDelete(sound.id)}>
-                    <span className="material-symbols-rounded">delete</span>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10 hover:text-destructive rounded-xl h-12 w-12" onClick={() => handleDelete(sound.id)}>
+                    <span className="material-symbols-rounded text-2xl">delete</span>
                   </Button>
                 </div>
               </div>
@@ -176,19 +175,19 @@ export default function Library() {
       </div>
 
       <Dialog open={!!editSound} onOpenChange={(open) => !open && setEditSound(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md bg-card border-4 border-border shadow-2xl rounded-[2.5rem]">
           <DialogHeader>
-            <DialogTitle>소리 수정</DialogTitle>
+            <DialogTitle className="text-2xl font-black">소리 고치기</DialogTitle>
           </DialogHeader>
           {editSound && (
-            <div className="py-4 flex flex-col gap-6">
+            <div className="py-4 flex flex-col gap-8">
               <div>
-                <label className="text-sm font-medium mb-2 block text-muted-foreground">이름</label>
-                <Input value={editName} onChange={e => setEditName(e.target.value)} className="font-bold text-lg" />
+                <label className="text-base font-bold mb-3 block text-foreground">이름</label>
+                <Input value={editName} onChange={e => setEditName(e.target.value)} className="font-black text-xl h-14 rounded-2xl border-2 shadow-inner bg-muted/30 focus-visible:ring-primary/20 focus-visible:ring-4" />
               </div>
               
               <div>
-                <label className="text-sm font-medium mb-2 block text-muted-foreground">재생 구간 설정</label>
+                <label className="text-base font-bold mb-3 block text-foreground">길이 조절</label>
                 <TrimSlider 
                   duration={editSound.duration} 
                   trimStart={editTrimStart} 
@@ -198,9 +197,9 @@ export default function Library() {
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditSound(null)}>취소</Button>
-            <Button onClick={saveEdit}>저장</Button>
+          <DialogFooter className="mt-4">
+            <Button variant="ghost" className="h-14 rounded-[1.25rem] text-lg font-bold" onClick={() => setEditSound(null)}>취소</Button>
+            <Button className="h-14 rounded-[1.25rem] text-lg font-bold shadow-[0_4px_0_0_rgba(0,0,0,0.15)] active:shadow-none active:translate-y-[4px] transition-all" onClick={saveEdit}>저장하기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
